@@ -795,6 +795,7 @@ class ExLlamaV2:
         if self.config.repeat_layers[0] > 0:
             repeat_every = self.config.repeat_layers[0]
             repeat_back = self.config.repeat_layers[1]
+            stop_after = self.config.repeat_layers[2]
 
             attn_to_layer = []
             for idx, module in enumerate(self.modules):
@@ -816,9 +817,10 @@ class ExLlamaV2:
                     #print(f"idx: {idx}, attn_count: {attention_count}")
                     if attention_count > repeat_every:
                         attn_idx = layer_to_attn[idx]
-                        idx = attn_to_layer[attn_idx - repeat_back]
-                        attention_count = 0
-                        continue
+                        if attn_idx < stop_after:
+                            idx = attn_to_layer[attn_idx - repeat_back]
+                            attention_count = 0
+                            continue
 
                 # Respect abort signal
 

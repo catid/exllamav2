@@ -97,7 +97,7 @@ class ExLlamaV2Config:
 
     checkpoint_fused_mlp: bool
 
-    repeat_layers: tuple[int, int] = (20, 10)  # Repeat every 20 layers, go back 10 layers
+    repeat_layers: tuple[int, int] = (20, 10, 61)  # Repeat every 20 layers, go back 10 layers, stop after layer 60
 
 
     def __init__(self,
