@@ -813,7 +813,7 @@ class ExLlamaV2:
 
                 if isinstance(module, ExLlamaV2Attention):
                     attention_count += 1
-                    print(f"idx: {idx}, attn_count: {attention_count}")
+                    #print(f"idx: {idx}, attn_count: {attention_count}")
                     if attention_count > repeat_every:
                         attn_idx = layer_to_attn[idx]
                         idx = attn_to_layer[attn_idx - repeat_back]
