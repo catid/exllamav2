@@ -796,7 +796,6 @@ class ExLlamaV2:
             repeat_every = self.config.repeat_layers[0]
             repeat_back = self.config.repeat_layers[1]
 
-            device = _torch_device(module.device_idx)
             attn_to_layer = []
             for idx, module in enumerate(self.modules):
                 if isinstance(module, ExLlamaV2Attention):
