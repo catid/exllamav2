@@ -791,31 +791,87 @@ class ExLlamaV2:
         last_state = None
         last_module = None
 
-        for idx, module in enumerate(self.modules):
-
-            # Respect abort signal
-
-            if abort_event and abort_event.is_set(): return None, None
-
-            # Onward
+        # Optionally repeat layers: Every N layers go back M layers
+        if self.config.repeat_layers[0] > 0:
+            repeat_every = self.config.repeat_layers[0]
+            repeat_back = self.config.repeat_layers[1]
 
             device = _torch_device(module.device_idx)
+            attn_to_layer = []
+            for idx, module in enumerate(self.modules):
+                if isinstance(module, ExLlamaV2Attention):
+                    attn_to_layer.append(idx)
+            layer_to_attn = {}
+            for idx_attn, idx_layer in enumerate(attn_to_layer):
+                layer_to_attn[idx_layer] = idx_attn
 
-            if idx == self.head_layer_idx:
-                if last_id_only and return_last_state:
-                    x = x.narrow(-2, -1, 1)
-                    last_state = x
-                elif last_id_only:
-                    x = x.narrow(-2, -1, 1)
-                elif return_last_state:
-                    last_state = x.narrow(-2, -1, 1)
+            attention_count = 0
 
-            x = safe_move_tensor(x, device)
-            x = module.forward(x, cache = cache, attn_params = attn_params, past_len = past_len, loras = loras, **kwargs)
+            idx = 0
+            max_layers = len(self.modules)
+            while idx < max_layers:
+                module = self.modules[idx]
 
-            if preprocess_only and idx == self.last_kv_layer_idx:
-                x = None
-                break
+                if isinstance(module, ExLlamaV2Attention):
+                    attention_count += 1
+                    print(f"idx: {idx}, attn_count: {attention_count}")
+                    if attention_count > repeat_every:
+                        attn_idx = layer_to_attn[idx]
+                        idx = attn_to_layer[attn_idx - repeat_back]
+                        attention_count = 0
+                        continue
+
+                # Respect abort signal
+
+                if abort_event and abort_event.is_set(): return None, None
+
+                # Onward
+
+                device = _torch_device(module.device_idx)
+
+                if idx == self.head_layer_idx:
+                    if last_id_only and return_last_state:
+                        x = x.narrow(-2, -1, 1)
+                        last_state = x
+                    elif last_id_only:
+                        x = x.narrow(-2, -1, 1)
+                    elif return_last_state:
+                        last_state = x.narrow(-2, -1, 1)
+
+                x = safe_move_tensor(x, device)
+                x = module.forward(x, cache = cache, attn_params = attn_params, past_len = past_len, loras = loras, **kwargs)
+
+                if preprocess_only and idx == self.last_kv_layer_idx:
+                    x = None
+                    break
+
+                idx += 1
+        else:
+            for idx, module in enumerate(self.modules):
+
+                # Respect abort signal
+
+                if abort_event and abort_event.is_set(): return None, None
+
+                # Onward
+
+                device = _torch_device(module.device_idx)
+
+                if idx == self.head_layer_idx:
+                    if last_id_only and return_last_state:
+                        x = x.narrow(-2, -1, 1)
+                        last_state = x
+                    elif last_id_only:
+                        x = x.narrow(-2, -1, 1)
+                    elif return_last_state:
+                        last_state = x.narrow(-2, -1, 1)
+
+                x = safe_move_tensor(x, device)
+                x = module.forward(x, cache = cache, attn_params = attn_params, past_len = past_len, loras = loras, **kwargs)
+
+                if preprocess_only and idx == self.last_kv_layer_idx:
+                    x = None
+                    break
 
         # Advance cache
 
